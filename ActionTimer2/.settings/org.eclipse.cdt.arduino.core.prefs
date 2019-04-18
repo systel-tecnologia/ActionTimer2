@@ -1,0 +1,2 @@
+eclipse.preferences.version=1
+libraries=["Equino Time",{"package"\:"arduino","platform"\:"avr","library"\:"EEPROM"},"Equino","RTClib",{"package"\:"arduino","platform"\:"avr","library"\:"Wire"},"Keypad","IRremote","Equino Keypad","Equino 7 Segment Display"]
