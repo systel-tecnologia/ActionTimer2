@@ -5,7 +5,6 @@
  Project : Systel Action Timer User Interface Support Arduino Library
  Author  : Daniel Valentin - dtvalentin@gmail.com
  
- 
  */
 
 #ifndef _ATUserInterface_H_
@@ -19,6 +18,25 @@
 #define ENABLE_PIN			3
 
 #define BUFFER_SIZE			8
+
+enum SetupPhase {
+	SELECT_PROGRAM,
+	SELECT_MODE,
+	SET_ACTION_TIME,
+	SELECT_CYCLES,
+	SET_PAUSE_TIME,
+	SET_INTERVAL_TIME,
+	SET_AL_INITIAL_TIME,
+	SET_AL_FINAL_TIME,
+	SELECT_SOUND,
+	SAVE_DATA
+};
+
+inline SetupPhase& operator++(SetupPhase& phase, int) {
+	const int i = static_cast<int>(phase) + 1;
+	phase = static_cast<SetupPhase>((i) % 10);
+	return phase;
+}
 
 // library interface description
 class ATPage {
@@ -138,6 +156,10 @@ protected:
 
 	void loadInterval(void);
 
+	void loadALInitial(void);
+
+	void loadALFinal(void);
+
 	void loadCycles(void);
 
 	void loadMode(void);
@@ -157,7 +179,7 @@ private:
 
 	int value2 = 0;
 
-	int phase = 0;
+	SetupPhase phase = 0;
 
 	void print();
 };

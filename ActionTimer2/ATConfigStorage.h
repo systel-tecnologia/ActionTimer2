@@ -12,7 +12,7 @@
 #ifndef _ATConfigStorage_H_
 #define _ATConfigStorage_H_
 
-#define INIT_DATA_FLAG					62
+#define INIT_DATA_FLAG					61
 
 #define INIT_DATA_FLAG_ADDRESS			1
 
@@ -29,14 +29,12 @@ enum Sound {
 struct ATProgram {
 	Mode mode = DOWN;
 	Sound sound = LIGHT;
-	int actions = 3; // Count
-	int action = 10; // Seconds
-	int pause = 10; // Seconds
-	int interval = 10; // Seconds
-};
-
-struct ATProgramDataBase {
-	ATProgram progs[9];
+	int cycles = 3; // Count
+	int action = 60; // Seconds
+	int pause = 30; // Seconds
+	int interval = 60; // Seconds
+	int alertInitial = 10;
+	int alertFinal = 15;
 	int modified = 0;
 };
 
@@ -47,9 +45,9 @@ public:
 
 	void start(void);
 
-	ATProgramDataBase load(void);
+	ATProgram load(int programaIndex);
 
-	void save(ATProgramDataBase data);
+	void save(ATProgram data, int programaIndex);
 
 	void reset(void);
 

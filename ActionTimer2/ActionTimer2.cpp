@@ -10,7 +10,7 @@
 #include "ActionTimer2.h"
 
 #include <AudioMessageDevice.h>
-#include <Equino.h>
+#include <HardwareSerial.h>
 #include <StateDevice.h>
 
 ActionTimer2 timer;
@@ -52,7 +52,8 @@ void ActionTimer2::setup(void) {
 
 	// Starting Storage Configuration
 	configStorage.start();
-	programaDataBase = configStorage.load();
+	program = 0;
+	dataProgram = configStorage.load(program);
 
 	// Starting Display user interface
 	userInterface.start();
@@ -74,7 +75,7 @@ void ActionTimer2::setup(void) {
 	DBG_PRINTLN_LEVEL("All Interrupts Started...");
 #endif
 	state = STOPPED;
-	loadProgram(0);
+	loadProgram(0, STEP_ACTION);
 	updateDiplayValue();
 	userInterface.updateDisplay();
 
@@ -92,7 +93,7 @@ void ActionTimer2::gotoPage(ATPage *page) {
 }
 
 void ActionTimer2::changeProgram(int programIndex, ATPage *page) {
-	loadProgram(programIndex);
+	loadProgram(programIndex, STEP_ACTION);
 	value.action = 1;
 	updateDiplayValue();
 	gotoPage(page);
@@ -119,7 +120,7 @@ void ActionTimer2::run(void) {
 }
 
 void ActionTimer2::calculateElapsedTime(DateTime now) {
-	if (programaDataBase.progs[program].mode == UP) {
+	if (dataProgram.mode == UP) {
 		upTo(now);
 	} else {
 		downTo(now);
@@ -152,7 +153,7 @@ void ActionTimer2::updateDiplayValue(void) {
 }
 
 void ActionTimer2::start(void) {
-	loadProgram(program);
+	loadProgram(program, STEP_ACTION);
 	value.action = 1;
 	updateDiplayValue();
 	userInterface.updateDisplay();
@@ -163,7 +164,8 @@ void ActionTimer2::start(void) {
 }
 
 void ActionTimer2::done(void) {
-	if (value.action >= programaDataBase.progs[program].actions) {
+	if (value.action >= dataProgram.cycles
+			&& (dataProgram.interval == 0 || dataProgram.cycles == 0)) {
 		state = DONE;
 		alarm(PHASE_3);
 	} else {
@@ -173,8 +175,15 @@ void ActionTimer2::done(void) {
 		delay(500);
 
 		// Restart
-		loadProgram(program);
-		value.action++;
+		if (value.action >= dataProgram.cycles && (dataProgram.interval > 0)) {
+			loadProgram(program, STEP_INTERVAL);
+			value.action = 0;
+		} else if (dataProgram.pause > 0 && step == STEP_ACTION) {
+			loadProgram(program, STEP_PAUSE);
+		} else {
+			loadProgram(program, STEP_ACTION);
+			value.action++;
+		}
 		updateDiplayValue();
 		userInterface.updateDisplay();
 		alarm(PHASE_1);
@@ -196,7 +205,7 @@ void ActionTimer2::stop(void) {
 }
 
 void ActionTimer2::resume(void) {
-	if (programaDataBase.progs[program].mode == UP) {
+	if (dataProgram.mode == UP) {
 		startTime = (rtc.now() - elapsedTime);
 	}
 	state = RUNNING;
@@ -208,7 +217,7 @@ void ActionTimer2::pause(void) {
 
 void ActionTimer2::config(void) {
 	state = STOPPED;
-	loadProgram(program);
+	loadProgram(program, STEP_ACTION);
 	value.action = 1;
 	gotoPage(&setupPage);
 }
@@ -221,25 +230,47 @@ boolean ActionTimer2::isPaused(void) {
 	return (state == PAUSED);
 }
 
+boolean ActionTimer2::isDisplayActions(void) {
+	return (step == STEP_ACTION) && (dataProgram.cycles > 0);
+}
+
 DisplayValue ActionTimer2::getValue(void) {
 	return value;
 }
 
-void ActionTimer2::loadProgram(int programIndex) {
+void ActionTimer2::loadProgram(int programIndex, TimerStep timeStep) {
+	step = timeStep;
 	program = programIndex;
+	dataProgram = configStorage.load(program);
 	elapsedTime = TimeSpan(0);
-	if (programaDataBase.progs[program].mode == DOWN) {
-		elapsedTime = TimeSpan(programaDataBase.progs[program].action);
+	switch (step) {
+	case STEP_ACTION:
+		if (dataProgram.mode == DOWN) {
+			elapsedTime = TimeSpan(dataProgram.action);
+		}
+		endTime = TimeSpan(dataProgram.action);
+		break;
+	case STEP_PAUSE:
+		if (dataProgram.mode == DOWN) {
+			elapsedTime = TimeSpan(dataProgram.pause);
+		}
+		endTime = TimeSpan(dataProgram.pause);
+		break;
+	case STEP_INTERVAL:
+		if (dataProgram.mode == DOWN) {
+			elapsedTime = TimeSpan(dataProgram.interval);
+		}
+		endTime = TimeSpan(dataProgram.interval);
+		break;
 	}
-	endTime = TimeSpan(programaDataBase.progs[program].action);
 }
 
 void ActionTimer2::alarm(int phase) {
-	if (programaDataBase.progs[program].sound == LIGHT) {
+	if (dataProgram.sound == LIGHT) {
 		audio.error(LEVEL_100, phase);
-	} else if (programaDataBase.progs[program].sound == HEAVE) {
+	} else if (dataProgram.sound == HEAVE) {
 		audio.fatal(LEVEL_100, phase);
-	} else if (programaDataBase.progs[program].sound == HARD) {
+	} else if (dataProgram.sound == HARD) {
 		for (int i = 0; i < phase; ++i) {
 			relay.write(STATE_ON);
 			delay(250);

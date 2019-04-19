@@ -27,9 +27,9 @@ void ATConfigStorage::start(void) {
 #endif
 }
 
-ATProgramDataBase ATConfigStorage::load(void) {
-	ATProgramDataBase data;
-	int eeAddress = DATA_STORE_ADDRESS;
+ATProgram ATConfigStorage::load(int programaIndex) {
+	ATProgram data;
+	int eeAddress = DATA_STORE_ADDRESS + (sizeof(data) * programaIndex);
 	EEPROM.get(eeAddress, data);
 	delay(100);
 #if(DEBUG_LEVEL >= 3)
@@ -39,12 +39,12 @@ ATProgramDataBase ATConfigStorage::load(void) {
 	return data;
 }
 
-void ATConfigStorage::save(ATProgramDataBase data) {
+void ATConfigStorage::save(ATProgram data, int programaIndex) {
 	if (data.modified != 0) {
 #if(DEBUG_LEVEL >= 4)
 		DBG_PRINTLN_LEVEL("\tEEPROM Data saved...");
 #endif
-		int eeAddress = DATA_STORE_ADDRESS;
+		int eeAddress = DATA_STORE_ADDRESS + (sizeof(data) * programaIndex);
 		data.modified = 0;
 		EEPROM.put(eeAddress, data);
 		delay(100);
@@ -71,15 +71,9 @@ void ATConfigStorage::reset(void) {
 #if(DEBUG_LEVEL >= 4)
 	DBG_PRINTLN_LEVEL("\tReset Configuration Database...");
 #endif
-	ATProgramDataBase data;
-	for (int i = 0; i < sizeof(data.progs); ++i) {
+	for (int i = 0; i < 9; ++i) {
 		ATProgram program;
-		program.action = (i + 1) * 15;
-		if (i % 2 == 0) {
-			program.mode = UP;
-		}
-		data.progs[i] = program;
+		program.modified = 1;
+		save(program, i);
 	}
-	data.modified = 1;
-	save(data);
 }

@@ -19,7 +19,7 @@
 // Formats
 #if(TIMER_MODE == 1)
 static const char* DSP_FORMAT1 = "%.2d%.1d%.2d";
-static const char* DSP_FORMAT2 = "%c%.2d%.2d";
+static const char* DSP_FORMAT2 = "%c%2d%.2d";
 #endif
 
 #if(TIMER_MODE == 2)
@@ -95,8 +95,13 @@ void ATRunPage::refresh(void) {
 		display.print((char*) DSP_FORMAT2, BUFFER_SIZE, 32, value.minute,
 				value.second);
 	} else {
-		display.print((char*) DSP_FORMAT1, BUFFER_SIZE, value.action,
-				value.minute, value.second);
+		if (!timer.isDisplayActions()) {
+			display.print((char*) DSP_FORMAT2, BUFFER_SIZE, 32, value.minute,
+					value.second);
+		} else {
+			display.print((char*) DSP_FORMAT1, BUFFER_SIZE, value.action,
+					value.minute, value.second);
+		}
 	}
 #endif
 #if(TIMER_MODE == 2)
@@ -157,14 +162,14 @@ void ATProgramPage::refresh(void) {
 // Setup Page
 void ATSetupPage::refresh(void) {
 	// Program Select
-	if (phase == 0) {
+	if (phase == SELECT_PROGRAM) {
 		display.print((char*) (DSP_TM_MODE_FMT), BUFFER_SIZE, value0, 'R', 32,
 				32, (char) (((timer.program + 1) + 48)));
 	}
 
 	// Mode Select
-	if (phase == 1) {
-		if (timer.programaDataBase.progs[timer.program].mode == UP) {
+	if (phase == SELECT_MODE) {
+		if (timer.dataProgram.mode == UP) {
 			display.print((char*) DSP_TM_MODE_FMT, BUFFER_SIZE, value0, 32, 32,
 					'C', 'R');
 		} else {
@@ -173,20 +178,24 @@ void ATSetupPage::refresh(void) {
 		}
 	}
 
-	// Time Select
-	if (phase == 2 || phase == 3 || phase == 5) {
-		display.print("%c%2d%.2d", BUFFER_SIZE, value0, value1, value2);
+	// Set Times
+	if (phase == SET_ACTION_TIME || phase == SET_PAUSE_TIME
+			|| phase == SET_INTERVAL_TIME) {
+		display.print((char*) DSP_FORMAT2, BUFFER_SIZE, value0, value1, value2);
+	}
+
+	if (phase == SET_AL_INITIAL_TIME || phase == SET_AL_FINAL_TIME) {
+		display.print("A%c%1d%.2d", BUFFER_SIZE, value0, value1, value2);
 	}
 
 	// Cycles Select
-	if (phase == 4) {
-		display.print("C%4d", BUFFER_SIZE,
-				timer.programaDataBase.progs[timer.program].actions);
+	if (phase == SELECT_CYCLES) {
+		display.print("C%4d", BUFFER_SIZE, timer.dataProgram.cycles);
 	}
 
 	// Sound Select
-	if (phase == 6) {
-		switch (timer.programaDataBase.progs[timer.program].sound) {
+	if (phase == SELECT_SOUND) {
+		switch (timer.dataProgram.sound) {
 		case LIGHT:
 			display.print((char*) DSP_TM_MODE_FMT, BUFFER_SIZE, value0, 32, '_',
 					32, 32);
@@ -206,17 +215,17 @@ void ATSetupPage::refresh(void) {
 void ATSetupPage::input(char code) {
 	ATPage::input(code);
 	if (code >= CODE_1 && code <= CODE_9) {
-		if (phase == 0) {
+		if (phase == SELECT_PROGRAM) {
 			loadProgram(code);
 		}
 	}
 
 	if (code == CODE_B) {
 		switch (phase) {
-		case 1:
+		case SELECT_MODE:
 			inputMode();
 			break;
-		case 6:
+		case SELECT_SOUND:
 			inputSound();
 			break;
 		}
@@ -225,25 +234,31 @@ void ATSetupPage::input(char code) {
 	if (code == CODE_A) {
 		phase++;
 		switch (phase) {
-		case 1:
+		case SELECT_MODE:
 			loadMode();
 			break;
-		case 2:
+		case SET_ACTION_TIME:
 			loadAction();
 			break;
-		case 3:
+		case SET_PAUSE_TIME:
 			loadPause();
 			break;
-		case 4:
+		case SELECT_CYCLES:
 			loadCycles();
 			break;
-		case 5:
+		case SET_INTERVAL_TIME:
 			loadInterval();
 			break;
-		case 6:
+		case SET_AL_INITIAL_TIME:
+			loadALInitial();
+			break;
+		case SET_AL_FINAL_TIME:
+			loadALFinal();
+			break;
+		case SELECT_SOUND:
 			loadSound();
 			break;
-		case 7:
+		case SAVE_DATA:
 			saveData();
 			break;
 		}
@@ -251,30 +266,42 @@ void ATSetupPage::input(char code) {
 }
 
 void ATSetupPage::saveData(void) {
-	phase = 0;
+	phase = SELECT_PROGRAM;
 	value0 = 'P';
-	timer.programaDataBase.modified = 1;
-	timer.configStorage.save(timer.programaDataBase);
+	timer.dataProgram.modified = 1;
+	timer.configStorage.save(timer.dataProgram, timer.program);
 	timer.audio.info(LEVEL_100, 4);
 	timer.changeProgram(timer.program, &runPage);
 }
 
 void ATSetupPage::loadAction() {
 	value0 = 'A';
-	value1 = (timer.programaDataBase.progs[timer.program].action / 60) % 60;
-	value2 = (timer.programaDataBase.progs[timer.program].action % 60);
+	value1 = (timer.dataProgram.action / 60) % 60;
+	value2 = (timer.dataProgram.action % 60);
 }
 
 void ATSetupPage::loadPause() {
 	value0 = 'P';
-	value1 = (timer.programaDataBase.progs[timer.program].pause / 60) % 60;
-	value2 = (timer.programaDataBase.progs[timer.program].pause % 60);
+	value1 = (timer.dataProgram.pause / 60) % 60;
+	value2 = (timer.dataProgram.pause % 60);
 }
 
 void ATSetupPage::loadInterval() {
 	value0 = 'F';
-	value1 = (timer.programaDataBase.progs[timer.program].interval / 60) % 60;
-	value2 = (timer.programaDataBase.progs[timer.program].interval % 60);
+	value1 = (timer.dataProgram.interval / 60) % 60;
+	value2 = (timer.dataProgram.interval % 60);
+}
+
+void ATSetupPage::loadALInitial() {
+	value0 = 'I';
+	value1 = (timer.dataProgram.alertInitial / 60) % 60;
+	value2 = (timer.dataProgram.alertInitial % 60);
+}
+
+void ATSetupPage::loadALFinal() {
+	value0 = 'F';
+	value1 = (timer.dataProgram.alertFinal / 60) % 60;
+	value2 = (timer.dataProgram.alertFinal % 60);
 }
 
 void ATSetupPage::loadCycles() {
@@ -287,7 +314,6 @@ void ATSetupPage::loadMode() {
 
 void ATSetupPage::loadSound() {
 	value0 = 'B';
-	timer.alarm(PHASE_2);
 }
 
 void ATSetupPage::loadProgram(char code) {
@@ -296,20 +322,20 @@ void ATSetupPage::loadProgram(char code) {
 }
 
 void ATSetupPage::inputMode() {
-	if (timer.programaDataBase.progs[timer.program].mode == UP) {
-		timer.programaDataBase.progs[timer.program].mode = DOWN;
+	if (timer.dataProgram.mode == UP) {
+		timer.dataProgram.mode = DOWN;
 	} else {
-		timer.programaDataBase.progs[timer.program].mode = UP;
+		timer.dataProgram.mode = UP;
 	}
 }
 
 void ATSetupPage::inputSound() {
-	if (timer.programaDataBase.progs[timer.program].sound == LIGHT) {
-		timer.programaDataBase.progs[timer.program].sound = HEAVE;
-	} else if (timer.programaDataBase.progs[timer.program].sound == HEAVE) {
-		timer.programaDataBase.progs[timer.program].sound = HARD;
-	} else if (timer.programaDataBase.progs[timer.program].sound == HARD) {
-		timer.programaDataBase.progs[timer.program].sound = LIGHT;
+	if (timer.dataProgram.sound == LIGHT) {
+		timer.dataProgram.sound = HEAVE;
+	} else if (timer.dataProgram.sound == HEAVE) {
+		timer.dataProgram.sound = HARD;
+	} else if (timer.dataProgram.sound == HARD) {
+		timer.dataProgram.sound = LIGHT;
 	}
 	timer.alarm(PHASE_2);
 }

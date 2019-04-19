@@ -44,8 +44,8 @@
 #define _ActionTimer2_H_
 
 #include <Arduino.h>
-#include <Keypad13k7i.h>
 #include <Equino.h>
+#include <Keypad13k7i.h>
 #include <Led.h>
 #include <Relay.h>
 #include <RTClib.h>
@@ -96,6 +96,10 @@ struct DisplayValue {
 	int second = 0;
 };
 
+enum TimerStep {
+	STEP_ACTION, STEP_PAUSE, STEP_INTERVAL
+};
+
 enum TimerState {
 	STOPPED, RUNNING, PAUSED, CANCELED, DONE
 };
@@ -134,9 +138,11 @@ public:
 
 	boolean isPaused(void);
 
+	boolean isDisplayActions(void);
+
 	DisplayValue getValue(void);
 
-	ATProgramDataBase programaDataBase;
+	ATProgram dataProgram;
 
 	ATConfigStorage configStorage;
 
@@ -164,7 +170,7 @@ protected:
 
 	void upTo(DateTime now);
 
-	void loadProgram(int programIndex);
+	void loadProgram(int programIndex, TimerStep phase);
 
 	void updateDiplayValue(void);
 
@@ -173,6 +179,8 @@ protected:
 private:
 
 	TimerState state = STOPPED;
+
+	TimerStep step = STEP_ACTION;
 
 	DisplayValue value;
 
