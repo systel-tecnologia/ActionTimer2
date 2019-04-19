@@ -12,7 +12,7 @@
 #ifndef _ATConfigStorage_H_
 #define _ATConfigStorage_H_
 
-#define INIT_DATA_FLAG					61
+#define INIT_DATA_FLAG					63
 
 #define INIT_DATA_FLAG_ADDRESS			1
 
@@ -30,11 +30,11 @@ struct ATProgram {
 	Mode mode = DOWN;
 	Sound sound = LIGHT;
 	int cycles = 3; // Count
-	int action = 60; // Seconds
-	int pause = 30; // Seconds
-	int interval = 60; // Seconds
-	int alertInitial = 10;
-	int alertFinal = 15;
+	int action = 30; // Seconds
+	int pause = 15; // Seconds
+	int interval = 25; // Seconds
+	int alertInitial = 5;
+	int alertFinal = 10;
 	int modified = 0;
 };
 

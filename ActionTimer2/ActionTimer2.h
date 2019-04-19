@@ -9,25 +9,30 @@
 
  The circuit:
 
- Display Config:
- LATCH 			connect to digital pin 0
- DATA   		connect to digital pin 1
- CLOCK  		connect to digital pin 2
- ENABLE 		connect to digital pin 3
-
- Mechanic Alarm:
- BELL			connect to digital out 4
-
  Visual Status:
  STANDBY  LED		connect to analog out 0
  DIVISOR  LED		connect to analog out 1
+
+ Display Config:
+ LATCH 			connect to analog 	pin A2
+ DATA   		connect to analog 	pin A1
+ CLOCK  		connect to analog 	pin A0
+ ENABLE 		connect to digital 	pin 3
+
+ Mechanic Alarm:
+ BELL			connect to digital out 4
 
  Sound Control:
  SOUND			connect to digital 	out 5
  ADJ_SOUND  	connect to analog 	out A3
 
  Infra-red
- IR 			connect to digital 	in 6
+ IR 			connect to digital 	pin 6
+
+ Real Time Clock:
+ INT			connect to digital pin 2
+ SDA  			connect to analog 	out A4
+ SLA  			connect to analog 	out A5
 
  keypad:
  ROW 0			connect to digital in 7
@@ -87,8 +92,8 @@
 #define PHASE_1				1
 #define PHASE_2				2
 #define PHASE_3				3
-#define PHASE_4				4
-#define PHASE_5				5
+#define PHASE_4				5
+#define PHASE_5				4
 
 struct DisplayValue {
 	int action = 1;
@@ -97,7 +102,7 @@ struct DisplayValue {
 };
 
 enum TimerStep {
-	STEP_ACTION, STEP_PAUSE, STEP_INTERVAL
+	STEP_ALERT, STEP_ACTION, STEP_PAUSE, STEP_INTERVAL
 };
 
 enum TimerState {

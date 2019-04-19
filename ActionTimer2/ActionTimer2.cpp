@@ -10,7 +10,6 @@
 #include "ActionTimer2.h"
 
 #include <AudioMessageDevice.h>
-#include <HardwareSerial.h>
 #include <StateDevice.h>
 
 ActionTimer2 timer;
@@ -105,6 +104,18 @@ void ActionTimer2::run(void) {
 		DateTime now = rtc.now();
 		calculateElapsedTime(now);
 		userInterface.updateDisplay();
+
+		// Final Alert
+		if (step == STEP_ACTION && dataProgram.alertFinal > 0) {
+			if (dataProgram.alertFinal == elapsedTime.totalseconds()) {
+				audio.signal(LEVEL_100, 1000, 250);
+			}
+		}
+
+		if (step == STEP_ALERT) {
+			audio.signal(LEVEL_100, 1000, 200);
+		}
+
 		updateDisplay = false;
 	} else if (updateDisplay) {
 		// Update Display Data
@@ -120,7 +131,7 @@ void ActionTimer2::run(void) {
 }
 
 void ActionTimer2::calculateElapsedTime(DateTime now) {
-	if (dataProgram.mode == UP) {
+	if (dataProgram.mode == UP || step == STEP_ALERT) {
 		upTo(now);
 	} else {
 		downTo(now);
@@ -153,12 +164,19 @@ void ActionTimer2::updateDiplayValue(void) {
 }
 
 void ActionTimer2::start(void) {
-	loadProgram(program, STEP_ACTION);
+	loadProgram(program, STEP_ALERT);
+
 	value.action = 1;
+	if (step == STEP_ALERT) {
+		value.action = 0;
+	}
+
 	updateDiplayValue();
 	userInterface.updateDisplay();
+	if (step == STEP_ACTION) {
+		alarm(PHASE_1);
+	}
 	delay(500);
-	alarm(PHASE_1);
 	startTime = rtc.now();
 	state = RUNNING;
 }
@@ -171,7 +189,9 @@ void ActionTimer2::done(void) {
 	} else {
 		// Done
 		state = DONE;
-		alarm(PHASE_2);
+		if (step == STEP_ACTION) {
+			alarm(PHASE_2);
+		}
 		delay(500);
 
 		// Restart
@@ -186,7 +206,9 @@ void ActionTimer2::done(void) {
 		}
 		updateDiplayValue();
 		userInterface.updateDisplay();
-		alarm(PHASE_1);
+		if (step == STEP_ACTION) {
+			alarm(PHASE_1);
+		}
 		delay(500);
 		startTime = rtc.now();
 		state = RUNNING;
@@ -243,7 +265,16 @@ void ActionTimer2::loadProgram(int programIndex, TimerStep timeStep) {
 	program = programIndex;
 	dataProgram = configStorage.load(program);
 	elapsedTime = TimeSpan(0);
+
+	// has initial alert
+	if (step == STEP_ALERT && dataProgram.alertInitial == 0) {
+		step = STEP_ACTION;
+	}
+
 	switch (step) {
+	case STEP_ALERT:
+		endTime = TimeSpan(dataProgram.alertInitial);
+		break;
 	case STEP_ACTION:
 		if (dataProgram.mode == DOWN) {
 			elapsedTime = TimeSpan(dataProgram.action);
