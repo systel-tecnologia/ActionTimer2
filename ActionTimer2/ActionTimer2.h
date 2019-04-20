@@ -181,6 +181,8 @@ protected:
 
 	void calculateElapsedTime(DateTime now);
 
+	void blink(void);
+
 private:
 
 	TimerState state = STOPPED;

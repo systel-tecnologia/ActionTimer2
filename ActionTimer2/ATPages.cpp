@@ -66,6 +66,21 @@ void ATPage::refresh(void) {
 
 }
 
+void ATPage::blink(void) {
+	// Update Status Led
+	if (timer.isRunning()) {
+		timer.divisorLed.write(STATE_ON);
+	} else {
+		if ((timer.pilotLed.read() == STATE_OFF)) {
+			if (timer.divisorLed.read() == STATE_OFF) {
+				timer.divisorLed.write(STATE_ON);
+			} else {
+				timer.divisorLed.write(STATE_OFF);
+			}
+		}
+	}
+}
+
 // Main page
 void ATMainPage::refresh(void) {
 #if(TIMER_MODE == 2)
@@ -107,6 +122,7 @@ void ATRunPage::refresh(void) {
 #if(TIMER_MODE == 2)
 	display.print((char*) DSP_FORMAT1, BUFFER_SIZE, value.action, value.minute, value.second);
 #endif
+	blink();
 }
 
 void ATRunPage::input(char code) {
@@ -210,6 +226,14 @@ void ATSetupPage::refresh(void) {
 			break;
 		}
 	}
+
+	if (!((phase == SELECT_PROGRAM) || (phase == SELECT_MODE)
+			|| (phase == SELECT_CYCLES) || (phase == SELECT_SOUND))) {
+		blink();
+	} else {
+		timer.divisorLed.write(STATE_OFF);
+	}
+
 }
 
 void ATSetupPage::input(char code) {
@@ -294,7 +318,7 @@ void ATSetupPage::input(char code) {
 void ATSetupPage::saveData(void) {
 	phase = SELECT_PROGRAM;
 	value0 = 'P';
-	if(timer.dataProgram.modified){
+	if (timer.dataProgram.modified) {
 		timer.audio.info(LEVEL_100, 4);
 	}
 	timer.configStorage.save(timer.dataProgram, timer.program);

@@ -55,6 +55,8 @@ public:
 	// library-accessible "protected" interface
 protected:
 
+	void blink(void);
+
 	// library-accessible "private" interface
 private:
 
