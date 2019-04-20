@@ -190,7 +190,7 @@ void ATSetupPage::refresh(void) {
 
 	// Cycles Select
 	if (phase == SELECT_CYCLES) {
-		display.print("C%4d", BUFFER_SIZE, timer.dataProgram.cycles);
+		display.print("C%4d", BUFFER_SIZE, value2);
 	}
 
 	// Sound Select
@@ -214,9 +214,34 @@ void ATSetupPage::refresh(void) {
 
 void ATSetupPage::input(char code) {
 	ATPage::input(code);
-	if (code >= CODE_1 && code <= CODE_9) {
-		if (phase == SELECT_PROGRAM) {
+	if (code >= CODE_0 && code <= CODE_9) {
+		if ((code >= CODE_1 && code <= CODE_9) && (phase == SELECT_PROGRAM)) {
 			loadProgram(code);
+		} else
+		// Action, Pause, Interval Inputs
+		if ((phase == SET_ACTION_TIME) || (phase == SET_PAUSE_TIME)
+				|| (phase == SET_INTERVAL_TIME)) {
+			inputTime(shift, ((uint8_t) code - 48));
+			shift += 1;
+			if (shift == 4) {
+				shift = 0;
+			}
+		} else
+		// Alert Inputs
+		if ((phase == SET_AL_INITIAL_TIME) || (phase == SET_AL_FINAL_TIME)) {
+			inputTime(shift, ((uint8_t) code - 48));
+			shift += 1;
+			if (shift == 3) {
+				shift = 0;
+			}
+		} else
+		// Cycles Input
+		if ((phase == SELECT_CYCLES)) {
+			inputTime(shift, ((uint8_t) code - 48));
+			shift += 1;
+			if (shift == 2) {
+				shift = 0;
+			}
 		}
 	}
 
@@ -232,6 +257,7 @@ void ATSetupPage::input(char code) {
 	}
 
 	if (code == CODE_A) {
+		inputValue();
 		phase++;
 		switch (phase) {
 		case SELECT_MODE:
@@ -268,51 +294,53 @@ void ATSetupPage::input(char code) {
 void ATSetupPage::saveData(void) {
 	phase = SELECT_PROGRAM;
 	value0 = 'P';
-	timer.dataProgram.modified = 1;
+	if(timer.dataProgram.modified){
+		timer.audio.info(LEVEL_100, 4);
+	}
 	timer.configStorage.save(timer.dataProgram, timer.program);
-	timer.audio.info(LEVEL_100, 4);
 	timer.changeProgram(timer.program, &runPage);
 }
 
-void ATSetupPage::loadAction() {
+void ATSetupPage::loadAction(void) {
 	value0 = 'A';
 	value1 = (timer.dataProgram.action / 60) % 60;
 	value2 = (timer.dataProgram.action % 60);
 }
 
-void ATSetupPage::loadPause() {
+void ATSetupPage::loadPause(void) {
 	value0 = 'P';
 	value1 = (timer.dataProgram.pause / 60) % 60;
 	value2 = (timer.dataProgram.pause % 60);
 }
 
-void ATSetupPage::loadInterval() {
+void ATSetupPage::loadInterval(void) {
 	value0 = 'F';
 	value1 = (timer.dataProgram.interval / 60) % 60;
 	value2 = (timer.dataProgram.interval % 60);
 }
 
-void ATSetupPage::loadALInitial() {
+void ATSetupPage::loadALInitial(void) {
 	value0 = 'I';
 	value1 = (timer.dataProgram.alertInitial / 60) % 60;
 	value2 = (timer.dataProgram.alertInitial % 60);
 }
 
-void ATSetupPage::loadALFinal() {
+void ATSetupPage::loadALFinal(void) {
 	value0 = 'F';
 	value1 = (timer.dataProgram.alertFinal / 60) % 60;
 	value2 = (timer.dataProgram.alertFinal % 60);
 }
 
-void ATSetupPage::loadCycles() {
+void ATSetupPage::loadCycles(void) {
 	value0 = 'C';
+	value2 = timer.dataProgram.cycles;
 }
 
-void ATSetupPage::loadMode() {
+void ATSetupPage::loadMode(void) {
 	value0 = 'T';
 }
 
-void ATSetupPage::loadSound() {
+void ATSetupPage::loadSound(void) {
 	value0 = 'B';
 }
 
@@ -321,15 +349,16 @@ void ATSetupPage::loadProgram(char code) {
 	timer.changeProgram(code - 49, this);
 }
 
-void ATSetupPage::inputMode() {
+void ATSetupPage::inputMode(void) {
 	if (timer.dataProgram.mode == UP) {
 		timer.dataProgram.mode = DOWN;
 	} else {
 		timer.dataProgram.mode = UP;
 	}
+	timer.dataProgram.modified = 1;
 }
 
-void ATSetupPage::inputSound() {
+void ATSetupPage::inputSound(void) {
 	if (timer.dataProgram.sound == LIGHT) {
 		timer.dataProgram.sound = HEAVE;
 	} else if (timer.dataProgram.sound == HEAVE) {
@@ -337,5 +366,64 @@ void ATSetupPage::inputSound() {
 	} else if (timer.dataProgram.sound == HARD) {
 		timer.dataProgram.sound = LIGHT;
 	}
+	timer.dataProgram.modified = 1;
 	timer.alarm(PHASE_2);
+}
+
+void ATSetupPage::inputValue(void) {
+	if ((value3 > 0) || (value3 = 0 && shift > 0)) {
+		timer.dataProgram.modified = 1;
+		switch (phase) {
+		case SET_ACTION_TIME:
+			timer.dataProgram.action = value3;
+			break;
+		case SET_PAUSE_TIME:
+			timer.dataProgram.pause = value3;
+			break;
+		case SELECT_CYCLES:
+			timer.dataProgram.cycles = value3;
+			break;
+		case SET_INTERVAL_TIME:
+			timer.dataProgram.interval = value3;
+			break;
+		case SET_AL_INITIAL_TIME:
+			timer.dataProgram.alertInitial = value3;
+			break;
+		case SET_AL_FINAL_TIME:
+			timer.dataProgram.alertFinal = value3;
+			break;
+		}
+	}
+	value3 = 0;
+	shift = 0;
+}
+
+void ATSetupPage::inputTime(uint8_t shift, uint8_t value) {
+	switch (shift) {
+	case 0:
+		value1 = 0;
+		value2 = value;
+		break;
+
+	case 1:
+		value1 = 0;
+		value2 = (value2 * 10) + value;
+		break;
+
+	case 2:
+		value1 = (value2 / 10);
+		value2 = ((value2 - (value1 * 10)) * 10) + value;
+		break;
+
+	case 3:
+		value1 = ((value1 * 1000) + (value2 * 10)) / 100;
+		if (((value2 - ((value2 / 10) * 10)) * 10) > 59) {
+			value2 = 50 + value;
+		} else {
+			value2 = ((value2 - ((value2 / 10) * 10)) * 10) + value;
+		}
+		break;
+	}
+
+	value3 = ((value1 * 60) + value2);
 }

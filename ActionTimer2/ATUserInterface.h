@@ -170,6 +170,10 @@ protected:
 
 	void inputSound(void);
 
+	void inputTime(uint8_t shift, uint8_t value);
+
+	void inputValue(void);
+
 	// library-accessible "private" interface
 private:
 
@@ -178,6 +182,10 @@ private:
 	int value1 = 0;
 
 	int value2 = 0;
+
+	int value3 = 0;
+
+	int shift = 0;
 
 	SetupPhase phase = 0;
 
