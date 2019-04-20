@@ -115,7 +115,6 @@ void ActionTimer2::run(void) {
 		if (step == STEP_ALERT) {
 			audio.signal(LEVEL_100, 1000, 200);
 		}
-		
 		updateDisplay = false;
 	} else if (updateDisplay) {
 		// Update Display Data
